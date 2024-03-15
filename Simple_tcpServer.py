@@ -1,5 +1,6 @@
 from socket import *
 import random
+import gmpy2
 
 def is_prime(n, k=5):
     """Função para verificar se um número é provavelmente primo."""
@@ -98,15 +99,16 @@ def generate_keypair(prime1, prime2):
 
 def encrypt(message, public_key):
     """Criptografa uma mensagem usando a chave pública."""
-    e, n = public_key
+    n, e = public_key
     encrypted_message = [pow(ord(char), e, n) for char in message]
     return encrypted_message
 
 def decrypt(encrypted_message, private_key):
-    """Descriptografa uma mensagem usando a chave privada."""
     d, n = private_key
-    decrypted_message = [chr(pow(char, d, n)) for char in encrypted_message]
-    return ''.join(decrypted_message)
+    decrypted = pow(encrypted_message, d, n)
+    return decrypted.to_bytes((decrypted.bit_length() + 7) // 8, 'big').decode()
+
+
 
 # Gerar dois números primos de 2048 bits
 prime1 = generate_large_prime(2048)
@@ -116,14 +118,21 @@ prime2 = generate_large_prime(2048)
 public_key, private_key = generate_keypair(prime1, prime2)
 
 # Converter a chave pública para uma sequência de bytes
-serialized_public_key = "{}|{}".format(public_key[0], public_key[1]).encode()
+serialized_public_key = "{}|{}".format(public_key[0], public_key[1])
 
 print("Chave pública:")
 print(public_key)
-print(serialized_public_key)
 
 print("\nChave privada:")
 print(private_key)
+
+encrypt_test = encrypt("teste", public_key)
+print("\Palavra criptografada:")
+print(encrypt_test)
+
+decrypt_test = decrypt(encrypt_test, private_key)
+print("\Palavra descriptografada:")
+print(decrypt_test)
 
 serverPort = 15200
 
@@ -138,27 +147,23 @@ while True:  # Keep the server running indefinitely
         print(f"Connection from {addr} established.")
 
         # Enviar a chave pública para o cliente
-        serverSocket.sendall(bytes(str(serialized_public_key), "utf-8"))
+        # serverSocket.sendall(bytes(str(serialized_public_key), "utf-8"))
 
-        isFirst = False
+        isFirst = True
 
         while True:  # Communicate with the client until the client closes the connection
-            sentence = connectionSocket.recv(1024)
-            if not sentence:  # If the client closes the connection, break out of the loop
-                break
             
-            received = sentence.decode("utf-8")
-            print("Received From Client:", received)
-
-            if received.lower() == 'exit':
-                connectionSocket.close()
-                break  # Exit the loop and wait for a new connection
-
             if isFirst:
                 isFirst = False
 
                 connectionSocket.send(bytes(str(serialized_public_key), "utf-8"))
             else:
+                sentence = connectionSocket.recv(1024)
+                if not sentence:  # If the client closes the connection, break out of the loop
+                    break
+                
+                received = sentence.decode("utf-8")
+                print("Received From Client:", received)
                 decryptedSentence = decrypt(received, private_key)
                 
                 print("decrypted sentence:", decryptedSentence) 
