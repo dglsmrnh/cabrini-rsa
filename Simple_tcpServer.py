@@ -50,13 +50,23 @@ def gcd(a, b):
         a, b = b, a % b
     return a
 
-def extended_gcd(a, b):
+def extended_gcd_recursive(a, b):
     """Calcula o máximo divisor comum estendido de a e b, e os coeficientes x e y."""
     if a == 0:
         return b, 0, 1
     else:
-        g, y, x = extended_gcd(b % a, a)
+        g, y, x = extended_gcd_recursive(b % a, a)
         return g, x - (b // a) * y, y
+    
+def extended_gcd(a, b):
+    """Calcula o máximo divisor comum estendido de a e b, e os coeficientes x e y."""
+    x, y, u, v = 0, 1, 1, 0
+    while a != 0:
+        q, r = b // a, b % a
+        m, n = x - u * q, y - v * q
+        b, a, x, y, u, v = a, r, u, v, m, n
+    gcd = b
+    return gcd, x, y
 
 def mod_inverse(a, m):
     """Calcula o inverso modular de 'a' módulo 'm'."""
@@ -86,6 +96,18 @@ def generate_keypair(prime1, prime2):
 
     return public_key, private_key
 
+def encrypt(message, public_key):
+    """Criptografa uma mensagem usando a chave pública."""
+    e, n = public_key
+    encrypted_message = [pow(ord(char), e, n) for char in message]
+    return encrypted_message
+
+def decrypt(encrypted_message, private_key):
+    """Descriptografa uma mensagem usando a chave privada."""
+    d, n = private_key
+    decrypted_message = [chr(pow(char, d, n)) for char in encrypted_message]
+    return ''.join(decrypted_message)
+
 # Gerar dois números primos de 2048 bits
 prime1 = generate_large_prime(2048)
 prime2 = generate_large_prime(2048)
@@ -93,17 +115,17 @@ prime2 = generate_large_prime(2048)
 # Gerar o par de chaves RSA
 public_key, private_key = generate_keypair(prime1, prime2)
 
+# Converter a chave pública para uma sequência de bytes
+serialized_public_key = "{}|{}".format(public_key[0], public_key[1]).encode()
+
 print("Chave pública:")
 print(public_key)
+print(serialized_public_key)
 
 print("\nChave privada:")
 print(private_key)
 
 serverPort = 15200
-g = 11
-n = 33
-y = 3
-r2 = g**y%n
 
 serverSocket = socket(AF_INET, SOCK_STREAM)
 serverSocket.bind(("", serverPort))
@@ -115,8 +137,10 @@ while True:  # Keep the server running indefinitely
         connectionSocket, addr = serverSocket.accept()
         print(f"Connection from {addr} established.")
 
-        isFirst = True
-        k = 0
+        # Enviar a chave pública para o cliente
+        serverSocket.sendall(bytes(str(serialized_public_key), "utf-8"))
+
+        isFirst = False
 
         while True:  # Communicate with the client until the client closes the connection
             sentence = connectionSocket.recv(1024)
@@ -131,25 +155,15 @@ while True:  # Keep the server running indefinitely
                 break  # Exit the loop and wait for a new connection
 
             if isFirst:
-                r1 = int(received)
-                k = r1**y%n
                 isFirst = False
 
-                connectionSocket.send(bytes(str(r2), "utf-8"))
+                connectionSocket.send(bytes(str(serialized_public_key), "utf-8"))
             else:
-                decryptedSentence = ""
-                for c in received:
-                    decryptedSentence += chr(ord(c) - k)
-
+                decryptedSentence = decrypt(received, private_key)
+                
                 print("decrypted sentence:", decryptedSentence) 
-                encryptedSentence = ""  # Process the received data
 
-                for c in decryptedSentence.upper():
-                    encryptedSentence += chr(ord(c) + k)
-
-                connectionSocket.send(encryptedSentence.encode("utf-8"))
-
-                print("Sent back to Client:", encryptedSentence)
+                connectionSocket.send("Info recebida".encode("utf-8"))
 
     except ConnectionResetError as e:
         print(f"Connection reset by peer: {e}")

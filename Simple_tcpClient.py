@@ -1,12 +1,12 @@
 from socket import *
 
-g = 11
-n = 33
-x = 32
-r1 = 0
-r2 = 0
-k = 0
-keySent = False
+def encrypt(message, public_key):
+    """Criptografa uma mensagem usando a chave pública."""
+    e, n = public_key
+    encrypted_message = [pow(ord(char), e, n) for char in message]
+    return encrypted_message
+
+connectedToServer = False
 
 serverName = "10.1.70.32"
 serverPort = 15200
@@ -14,34 +14,29 @@ clientSocket = socket(AF_INET, SOCK_STREAM)
 clientSocket.connect((serverName,serverPort))
 while True:
 
-    if not keySent:
-        r1 = (g**x)%n
-        keySent = True
-        clientSocket.send(bytes(str(r1), "utf-8"))
-        print("Waiting for server key...")
-        r2 = int(clientSocket.recv(1024))
-        print("r2 = ", r2) #Remover depois
-        k = (r2**x)%n
-        print("k = ", k) #Remover depois
+    if not connectedToServer:
+        # Receber a chave pública do servidor
+        serialized_public_key = clientSocket.recv(4096).decode()
+        n, e = serialized_public_key.split("|")
+        public_key = (int(n), int(e))
+
+        print("Chave pública recebida:\n")
+        print(public_key)
+
+        connectedToServer = True
+
     else:
         rawSentence = input("Input lowercase sentence: ")
         if not rawSentence == "":
-            sentence = ""
-            for c in rawSentence:
-                c = chr(ord(c) + k)
-                sentence += c
+            sentence = encrypt(rawSentence, public_key)
             clientSocket.send(bytes(sentence, "utf-8"))
+            
             print("Waiting for answer...")
-            modifiedSentence = clientSocket.recv(1024)
-            rawText = str(modifiedSentence,"utf-8")
-            text = ""
-            for c in rawText:
-                c = chr(ord(c) - k)
-                text += c
-            print ("Received from \"Make Upper Case\" Server: ", text)
+
+            response = clientSocket.recv(1024)
+            responseText = str(response,"utf-8")
+            print ("Received from Server: ", responseText)
         else:
             clientSocket.detach()
-            r2 = 0
-            k = 0
-            keySent = False
+            connectedToServer = False
             break
