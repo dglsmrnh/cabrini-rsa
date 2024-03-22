@@ -52,10 +52,11 @@ def generate_prime(bits):
                 return n
 
 def generate_keypair(bits):
-    p = generate_prime(bits)
-    q = generate_prime(bits)
+    half_bits = bits // 2
+    p = generate_prime(half_bits)
+    q = generate_prime(half_bits)
     while p == q:
-        q = generate_prime(bits)
+        q = generate_prime(half_bits)
 
     n = p * q
     phi = (p - 1) * (q - 1)
@@ -89,14 +90,6 @@ print("Chave privada:", private_key)
 # Converter a chave pública para uma sequência de bytes
 serialized_public_key = "{}|{}".format(public_key[0], public_key[1])
 
-encrypt_test = encrypt("The information security is of significant importance to ensure the privacy of communications", public_key)
-print("\Palavra criptografada:")
-print(encrypt_test)
-
-decrypt_test = decrypt(encrypt_test, private_key)
-print("\Palavra descriptografada:")
-print(decrypt_test)
-
 serverPort = 15200
 
 serverSocket = socket(AF_INET, SOCK_STREAM)
@@ -123,25 +116,28 @@ while True:  # Keep the server running indefinitely
                 isSecond = True
 
                 connectionSocket.send(bytes(serialized_public_key, "utf-8"))
+                print("send key")
             elif isSecond:
                 isSecond = False
-                serialized_public_key = connectionSocket.recv(5000)
+                serialized_public_key = connectionSocket.recv(5000).decode()
                 n, e = serialized_public_key.split("|")
                 client_public_key = (int(n), int(e))
+                print("client_public_key", client_public_key)
             else:
                 sentence = connectionSocket.recv(5000)
                 if not sentence:  # If the client closes the connection, break out of the loop
                     break
                 
-                received = sentence
+                received = int(sentence.decode())
                 print("Received From Client:", received)
                 decryptedSentence = decrypt(received, private_key)
                 
                 print("decrypted sentence:", decryptedSentence) 
+                print("decrypted sentence:", decryptedSentence.upper()) 
 
-                encryptedSentence = encrypt(received.upper(), client_public_key)
+                encryptedSentence = encrypt(decryptedSentence.upper(), client_public_key)
 
-                connectionSocket.send(bytes(encryptedSentence, "utf-8"))
+                connectionSocket.send(bytes(str(encryptedSentence), "utf-8"))
 
     except ConnectionResetError as e:
         print(f"Connection reset by peer: {e}")
