@@ -1,4 +1,4 @@
-# Servidor <-> Cliente criptografado
+# Servidor <-> Cliente criptografado em RSA
 - Danilo Padilha 082190036
 - Douglas Marinho 082190029
 - Pedro Vinicius 082190016
