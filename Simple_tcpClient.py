@@ -21,6 +21,8 @@ def is_prime(n, k=5):
         return True
     if n % 2 == 0:
         return False
+    if n % 5 == 0:
+        return False
 
     d = n - 1
     while d % 2 == 0:
@@ -52,10 +54,11 @@ def generate_prime(bits):
                 return n
 
 def generate_keypair(bits):
-    p = generate_prime(bits)
-    q = generate_prime(bits)
+    bits2 = bits // 2
+    p = generate_prime(bits2)
+    q = generate_prime(bits2)
     while p == q:
-        q = generate_prime(bits)
+        q = generate_prime(bits2)
 
     n = p * q
     phi = (p - 1) * (q - 1)
@@ -93,13 +96,16 @@ serverName = "10.1.70.32"
 serverPort = 15200
 clientSocket = socket(AF_INET, SOCK_STREAM)
 clientSocket.connect((serverName,serverPort))
+print(connectedToServer)
 while True:
 
     if not connectedToServer:
+        print ("Não conectou")
         # Receber a chave pública do servidor
-        serialized_public_key = clientSocket.recv(5000)
-        n, e = serialized_public_key.split("|")
-        server_public_key = (int(n), int(e))
+        setence_public_key = clientSocket.recv(5000).decode()
+        n, e = setence_public_key.split("|")
+
+        server_public_key = int(n), int(e)
 
         print("Chave pública recebida:\n")
         print(server_public_key)
@@ -111,13 +117,14 @@ while True:
     else:
         rawSentence = input("Input lowercase sentence: ")
         if not rawSentence == "":
-            sentence = encrypt(rawSentence, public_key)
-            clientSocket.send(bytes(sentence, "utf-8"))
+            sentence = encrypt(rawSentence, server_public_key)
+            clientSocket.send(bytes(str(sentence), "utf-8"))
             
             print("Waiting for answer...")
 
-            response = clientSocket.recv(5000)
-            responseText = str(response,"utf-8")
+            response = int(clientSocket.recv(5000).decode())
+            print(response)
+            responseText = decrypt(response, private_key)
             print ("Received from Server: ", responseText)
         else:
             clientSocket.detach()
