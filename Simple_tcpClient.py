@@ -98,7 +98,7 @@ while True:
     if not connectedToServer:
         # Receber a chave pública do servidor
         serialized_public_key = clientSocket.recv(5000)
-        n, e = serialized_public_key.split("|")
+        n, e = str(serialized_public_key).split("|")
         server_public_key = (int(n), int(e))
 
         print("Chave pública recebida:\n")
