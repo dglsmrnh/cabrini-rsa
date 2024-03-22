@@ -1,6 +1,5 @@
 from socket import *
 import random
-import gmpy2
 
 def is_prime(n, k=5):
     """Função para verificar se um número é provavelmente primo."""
@@ -97,22 +96,81 @@ def generate_keypair(prime1, prime2):
 
     return public_key, private_key
 
-def encrypt(message, public_key):
+def encrypt_old(message, public_key):
     """Criptografa uma mensagem usando a chave pública."""
-    n, e = public_key
+    e, n = public_key
     encrypted_message = [pow(ord(char), e, n) for char in message]
     return encrypted_message
 
-def decrypt(encrypted_message, private_key):
+def decrypt_old(encrypted_message, private_key):
+    """Descriptografa uma mensagem usando a chave privada."""
     d, n = private_key
-    decrypted = pow(encrypted_message, d, n)
-    return decrypted.to_bytes((decrypted.bit_length() + 7) // 8, 'big').decode()
+    decrypted_chars = []
+    for char in encrypted_message:
+        decrypted_char = pow(char, d, n)
+        print("\ndecrypted char\n")
+        print(decrypted_char)
+        decrypted_chars.append(chr(decrypted_char))
 
+    decrypted_message = ''.join(decrypted_chars)
+    return decrypted_message
+
+def encrypt(msg, public_key):
+    """Criptografa uma mensagem usando a chave pública."""
+    e, n = public_key
+    
+    # Convertendo a mensagem em uma sequência de valores ASCII
+    ascii_values = [str(ord(char)) for char in msg]  # Preenche com zeros à direita para ter 3 dígitos
+
+    # Concatenando os valores ASCII em uma única string
+    msg_str = ''.join(ascii_values)
+    print("\nASCII word\n")
+    print(msg_str)
+
+    # Convertendo a string para um número grande
+    msg_bigint = int(msg_str)
+
+    # Calculando C = M^e mod N
+    result = pow(msg_bigint, e, n)
+
+    # Convertendo o resultado para string
+    encrypted_message = str(result)
+
+    return encrypted_message
+
+
+def decrypt(encrypted_message, private_key):
+    """Descriptografa uma mensagem usando a chave privada."""
+    d, n = private_key
+    
+    # Convertendo a cifra para um número grande
+    encrypt_bigint = int(encrypted_message)
+
+    # Calculando cifrada_bigint^d mod n
+    result = pow(encrypt_bigint, d, n)
+
+    # Convertendo o resultado de volta para uma string
+    result_str = str(result).zfill(3)
+    print("\nASCII word\n")
+    print(result_str)
+
+    # Reconstruindo a mensagem original convertendo cada bloco de volta para seu caractere ASCII correspondente
+    i = 0
+    decrypted_message = ''
+    while i < len(result_str):
+        # Obtendo o valor ASCII de cada bloco
+        ascii_value = int(result_str[i:i+3])  # Supondo que cada bloco tem 3 dígitos
+        # Convertendo o valor ASCII de volta para um caractere
+        decrypted_message += chr(ascii_value)
+        # Avançando para o próximo bloco
+        i += 3
+
+    return decrypted_message
 
 
 # Gerar dois números primos de 2048 bits
-prime1 = generate_large_prime(2048)
-prime2 = generate_large_prime(2048)
+prime1 = generate_large_prime(3)
+prime2 = generate_large_prime(3)
 
 # Gerar o par de chaves RSA
 public_key, private_key = generate_keypair(prime1, prime2)
@@ -126,7 +184,7 @@ print(public_key)
 print("\nChave privada:")
 print(private_key)
 
-encrypt_test = encrypt("teste", public_key)
+encrypt_test = encrypt("A", public_key)
 print("\Palavra criptografada:")
 print(encrypt_test)
 
@@ -162,7 +220,7 @@ while True:  # Keep the server running indefinitely
                 if not sentence:  # If the client closes the connection, break out of the loop
                     break
                 
-                received = sentence.decode("utf-8")
+                received = sentence
                 print("Received From Client:", received)
                 decryptedSentence = decrypt(received, private_key)
                 
